@@ -1,0 +1,25 @@
+# Version information types
+
+type VersionInfo {
+  """API version"""
+  api: ApiVersion!
+
+  """WinCC OA version"""
+  winccoa: SystemVersion!
+}
+
+type ApiVersion {
+  version: Int!
+}
+
+type SystemVersion {
+  display: String!
+  major: Int!
+  minor: Int!
+  numeric: Int!
+  numeric_full: Int!
+  patch: Int!
+  platform: String!
+  revision: Int!
+  version: String!
+}

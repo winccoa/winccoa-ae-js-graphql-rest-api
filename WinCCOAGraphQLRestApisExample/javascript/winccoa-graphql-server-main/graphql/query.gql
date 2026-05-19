@@ -1,0 +1,15 @@
+# Root Query type - Entry points to the graph
+
+type Query {
+  """
+  Access to WinCC OA Node.js API methods (backward compatibility)
+  All existing flat query functions are available here
+  """
+  api: API!
+
+  """
+  Extra operations
+  This is a helper namespace for development and testing, not a WinCC OA API function.
+  """
+  extras: ExtrasMethods!
+}

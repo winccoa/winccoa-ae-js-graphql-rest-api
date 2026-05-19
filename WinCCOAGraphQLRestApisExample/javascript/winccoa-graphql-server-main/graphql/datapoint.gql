@@ -1,0 +1,275 @@
+# Data Point types - Core type representing a WinCC OA data point
+
+type DataPoint {
+  """Data point name (without system prefix)"""
+  name: String!
+
+  """Full qualified name (with system prefix if applicable)"""
+  fullName: String!
+
+  """Data point type definition"""
+  type: DataPointType!
+
+  """Whether this data point exists"""
+  exists: Boolean!
+
+  """
+  Get a specific element by path (e.g., "status", "value", "status.code")
+  """
+  element(path: String!): DataPointElement
+
+  """
+  Get all elements, optionally filtered by pattern
+  """
+  elements(pattern: String): [DataPointElement!]!
+
+  """
+  Convenience: Get the root value directly (equivalent to element with empty path)
+  """
+  value: JSON
+
+  """
+  Get the data point as a tag with value, timestamp, and status
+  """
+  tag: Tag
+
+  """
+  Get historical tag values with metadata
+  Use either (startTime + endTime) OR lastMinutes
+  Wraps WinCC OA function: dpGetPeriod(startTime, endTime, dpeNames)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetPeriod.html
+  """
+  tagHistory(startTime: Time, endTime: Time, lastMinutes: Int, limit: Int, offset: Int): TagHistory
+
+  """
+  Get alerts associated with this data point
+  Use either (startTime + endTime) OR lastMinutes
+  Wraps WinCC OA function: alertGetPeriod(startTime, endTime, names)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/alertGetPeriod.html
+  """
+  alerts(startTime: Time, endTime: Time, lastMinutes: Int, limit: Int, offset: Int): [Alert!]!
+
+  """
+  Get CNS nodes that link to this data point
+  Wraps WinCC OA function: cnsGetNodesByData(dpName, type, viewPath)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/CNS_Ctrl/cnsGetNodesByData.html
+  """
+  cnsNodes: [CNSNode!]!
+
+  """
+  Data point alias/display name
+  Wraps WinCC OA function: dpGetAlias(dpeName)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetAlias.html
+  """
+  alias: String
+
+  """
+  Data point description
+  Wraps WinCC OA function: dpGetDescription(dpeName)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetDescription.html
+  """
+  description: String
+
+  """
+  Data point value format string
+  Wraps WinCC OA function: dpGetFormat(dpeName)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetFormat.html
+  """
+  format: String
+
+  """
+  Data point measurement unit (e.g., "°C", "bar", "m/s")
+  Wraps WinCC OA function: dpGetUnit(dpeName)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetUnit.html
+  """
+  unit: String
+}
+
+# Data Point Element - Represents an element within a data point
+type DataPointElement {
+  """Element name (last part of path)"""
+  name: String!
+
+  """Full path within the data point (e.g., "status.code")"""
+  path: String!
+
+  """Parent data point"""
+  dataPoint: DataPoint!
+
+  """
+  Current value
+  Wraps WinCC OA function: dpGet(dpeNames)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGet.html
+  """
+  value: JSON
+
+  """
+  Timestamp of last value change
+  Wraps WinCC OA function: dpGet() with _online.._stime attribute
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGet.html
+  """
+  timestamp: Time
+
+  """
+  Element status information
+  Wraps WinCC OA function: dpGet() with _online.._status attribute
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGet.html
+  """
+  status: ElementStatus!
+
+  """Element data type"""
+  elementType: ElementType!
+
+  """
+  Get historical values for this element
+  Use either (startTime + endTime) OR lastMinutes
+  Wraps WinCC OA function: dpGetPeriod(startTime, endTime, dpeNames)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetPeriod.html
+  """
+  history(
+    startTime: Time
+    endTime: Time
+    lastMinutes: Int
+    limit: Int
+    offset: Int
+  ): ElementHistory!
+
+  """
+  Parent element (null if root)
+  Resolved from the data point type structure
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpTypeGet.html
+  """
+  parent: DataPointElement
+
+  """
+  Child elements (empty if leaf)
+  Resolved from the data point type structure
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpTypeGet.html
+  """
+  children: [DataPointElement!]!
+}
+
+"""Element status bit attributes"""
+enum ElementStatusBit {
+  ACTIVE
+  EXP_DEFAULT
+  AUT_DEFAULT
+  OUT_PRANGE
+  OUT_RANGE
+  EXP_INV
+  AUT_INV
+  ONLINE_BAD
+  DEFAULT_BAD
+  FROM_GI
+  FROM_SI
+  PER_ACTIVE
+  CORR
+  COMPR
+  COMP_CORR
+  CORR_ADD
+  COMP_INV
+  STIME_INV
+  TRANSITION
+  LAST_VALUE_STORAGE_OFF
+  VALUE_CHANGED
+  VALUE_UP
+  UNCERTAIN
+  RESERVED
+}
+
+type ElementStatus {
+  """Raw status integer value"""
+  value: Int!
+
+  """Binary representation as string"""
+  bits: String!
+
+  """Status bits that are ON (set to 1)"""
+  on: [ElementStatusBit!]!
+
+  """Status bits that are OFF (set to 0)"""
+  off: [ElementStatusBit!]!
+
+  """Check if a specific status bit is set"""
+  status(bit: ElementStatusBit!): Boolean!
+}
+
+type ElementHistory {
+  """Element this history belongs to"""
+  element: DataPointElement!
+
+  """Historical values"""
+  values: [ElementHistoryValue!]!
+
+  """Total number of values in the time range"""
+  totalCount: Int!
+}
+
+type ElementHistoryValue {
+  timestamp: Time!
+  value: JSON!
+  status: ElementStatus
+}
+
+# Data Point Type - Type definition/structure
+type DataPointType {
+  """Type name"""
+  name: String!
+
+  """
+  Type structure/hierarchy
+  Wraps WinCC OA function: dpTypeGet(dpt, includeSubTypes)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpTypeGet.html
+  """
+  structure: DataPointTypeNode!
+
+  """
+  Data point types referenced by this type
+  Wraps WinCC OA function: dpGetDpTypeRefs(dpt)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetDpTypeRefs.html
+  """
+  references: [DataPointType!]!
+
+  """
+  Data point types that reference this type
+  Wraps WinCC OA function: dpGetRefsToDpType(reference)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetRefsToDpType.html
+  """
+  usedBy: [DataPointType!]!
+
+  """
+  Data points of this type
+  Wraps WinCC OA function: dpNames(dpPattern, dpType)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpNames.html
+  """
+  dataPoints(limit: Int, offset: Int): [DataPoint!]!
+
+  """
+  Count of data points of this type
+  Wraps WinCC OA function: dpNames(dpPattern, dpType)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpNames.html
+  """
+  count: Int!
+}
+
+type DataPointTypeNode {
+  """Node name"""
+  name: String!
+
+  """Element type"""
+  elementType: ElementType!
+
+  """Referenced type (if this node is a reference)"""
+  refType: DataPointType
+
+  """Child nodes"""
+  children: [DataPointTypeNode!]!
+}
+
+input DpTypeNodeInput {
+  name: String!
+  type: ElementType!
+  refName: String
+  children: [DpTypeNodeInput!]
+  newName: String
+}

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Usage Statistics - WinCC OA API Server</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem 0;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #888;
+            font-weight: 300;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filter-container {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filter-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            min-width: 350px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: rgba(100, 150, 255, 0.6);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .btn.active {
+            background: rgba(100, 150, 255, 0.3);
+            border-color: rgba(100, 150, 255, 0.6);
+        }
+
+        .btn.filter-preset {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            border-width: 1px;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .summary {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .summary-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem 2rem;
+            text-align: center;
+        }
+
+        .summary-label {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .summary-item.graphql .summary-value {
+            color: #60a5fa;
+        }
+
+        .summary-item.restapi .summary-value {
+            color: #f59e0b;
+        }
+
+        .stats-info {
+            text-align: center;
+            margin-bottom: 1rem;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 1rem;
+        }
+
+        .chart-label {
+            min-width: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #ccc;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chart-bar-container {
+            flex: 1;
+            position: relative;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .chart-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .chart-bar.graphql {
+            background: linear-gradient(90deg, #60a5fa, #3b82f6);
+        }
+
+        .chart-bar.restapi {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        .chart-count {
+            min-width: 60px;
+            text-align: left;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .back-link a {
+            color: #888;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .back-link a:hover {
+            color: #fff;
+            border-bottom-color: #fff;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #888;
+            font-size: 1.2rem;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.5);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            color: #fca5a5;
+            text-align: center;
+        }
+
+        .legend {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .legend-color.graphql {
+            background: linear-gradient(90deg, #60a5fa, #3b82f6);
+        }
+
+        .legend-color.restapi {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        @media (max-width: 768px) {
+            .chart-label {
+                min-width: 150px;
+                font-size: 0.8rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📊</div>
+            <h1>API Usage Statistics</h1>
+            <p class="subtitle">Real-time tracking of GraphQL and REST API calls</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn active" id="sortByName">Sort by Name</button>
+            <button class="btn" id="sortByCount">Sort by Count</button>
+            <button class="btn" id="refreshBtn">🔄 Refresh</button>
+        </div>
+
+        <div class="summary" id="summary">
+            <div class="summary-item graphql">
+                <div class="summary-label">GraphQL Calls</div>
+                <div class="summary-value" id="graphqlSum">0</div>
+            </div>
+            <div class="summary-item restapi">
+                <div class="summary-label">REST API Calls</div>
+                <div class="summary-value" id="restapiSum">0</div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color graphql"></div>
+                <span>GraphQL</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color restapi"></div>
+                <span>REST API</span>
+            </div>
+        </div>
+
+        <div class="filter-container">
+            <input type="text" class="filter-input" id="filterInput" placeholder="Filter: graphql/* or ^restapi/.*$">
+            <button class="btn filter-preset" id="filterGraphQL">GraphQL</button>
+            <button class="btn filter-preset" id="filterREST">REST</button>
+            <button class="btn filter-preset" id="filterClear">Clear</button>
+            <label class="checkbox-container">
+                <input type="checkbox" id="useRegex">
+                <span>Regex</span>
+            </label>
+            <label class="checkbox-container">
+                <input type="checkbox" id="excludeStats" checked>
+                <span>Exclude /stats</span>
+            </label>
+        </div>
+
+        <div class="stats-info" id="statsInfo"></div>
+
+        <div class="chart-container" id="chartContainer">
+            <div class="loading">Loading...</div>
+        </div>
+
+        <div class="back-link">
+            <a href="/">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        let currentSort = 'name';
+        let allStats = [];
+
+        async function fetchStats(sortBy = 'name') {
+            try {
+                const response = await fetch(`/restapi/v1/stats?sortBy=${sortBy}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                allStats = data.stats || [];
+                applyFilterAndRender();
+            } catch (error) {
+                showError(`Failed to fetch statistics: ${error.message}`);
+            }
+        }
+
+        function applyFilterAndRender() {
+            const filterInput = document.getElementById('filterInput').value;
+            const useRegex = document.getElementById('useRegex').checked;
+            const excludeStats = document.getElementById('excludeStats').checked;
+
+            let filtered = [...allStats];
+
+            // Exclude /stats endpoint if checked
+            if (excludeStats) {
+                filtered = filtered.filter(s => !s.name.includes('/stats'));
+            }
+
+            // Apply filter
+            if (filterInput) {
+                if (useRegex) {
+                    try {
+                        const regex = new RegExp(filterInput);
+                        filtered = filtered.filter(s => regex.test(s.name));
+                    } catch (e) {
+                        showError(`Invalid regex: ${e.message}`);
+                        return;
+                    }
+                } else {
+                    // Wildcard filter (convert * to .*)
+                    const pattern = filterInput.replace(/\*/g, '.*');
+                    const regex = new RegExp(pattern);
+                    filtered = filtered.filter(s => regex.test(s.name));
+                }
+            }
+
+            renderChart(filtered);
+            updateSummary(filtered);
+        }
+
+        function updateSummary(stats) {
+            const graphqlStats = stats.filter(s => s.name.startsWith('graphql/'));
+            const restapiStats = stats.filter(s => s.name.startsWith('restapi/'));
+
+            const graphqlSum = graphqlStats.reduce((sum, s) => sum + s.count, 0);
+            const restapiSum = restapiStats.reduce((sum, s) => sum + s.count, 0);
+
+            document.getElementById('graphqlSum').textContent = graphqlSum.toLocaleString();
+            document.getElementById('restapiSum').textContent = restapiSum.toLocaleString();
+        }
+
+        function renderChart(stats) {
+            const container = document.getElementById('chartContainer');
+            const statsInfo = document.getElementById('statsInfo');
+
+            if (!stats || stats.length === 0) {
+                container.innerHTML = '<div class="loading">No data matches the current filter.</div>';
+                statsInfo.textContent = 'No matching endpoints';
+                return;
+            }
+
+            // Calculate max count for scaling
+            const maxCount = Math.max(...stats.map(s => s.count));
+            const totalCalls = stats.reduce((sum, s) => sum + s.count, 0);
+
+            statsInfo.textContent = `Showing ${stats.length} endpoints | Total calls: ${totalCalls.toLocaleString()} | Sorted by: ${currentSort}`;
+
+            // Render bars
+            container.innerHTML = stats.map(stat => {
+                const percentage = (stat.count / maxCount) * 100;
+                const type = stat.name.startsWith('graphql/') ? 'graphql' : 'restapi';
+
+                return `
+                    <div class="chart-item">
+                        <div class="chart-label" title="${stat.name}">${stat.name}</div>
+                        <div class="chart-bar-container">
+                            <div class="chart-bar ${type}" style="width: ${percentage}%">
+                                ${stat.count > 0 ? stat.count : ''}
+                            </div>
+                        </div>
+                        <div class="chart-count">${stat.count.toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showError(message) {
+            const container = document.getElementById('chartContainer');
+            container.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // Event listeners
+        document.getElementById('sortByName').addEventListener('click', () => {
+            currentSort = 'name';
+            updateButtons();
+            fetchStats('name');
+        });
+
+        document.getElementById('sortByCount').addEventListener('click', () => {
+            currentSort = 'count';
+            updateButtons();
+            fetchStats('count');
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            fetchStats(currentSort);
+        });
+
+        // Filter event listeners
+        document.getElementById('filterInput').addEventListener('input', applyFilterAndRender);
+        document.getElementById('useRegex').addEventListener('change', applyFilterAndRender);
+        document.getElementById('excludeStats').addEventListener('change', applyFilterAndRender);
+
+        document.getElementById('filterGraphQL').addEventListener('click', () => {
+            document.getElementById('filterInput').value = '^graphql/.*';
+            document.getElementById('useRegex').checked = true;
+            applyFilterAndRender();
+        });
+
+        document.getElementById('filterREST').addEventListener('click', () => {
+            document.getElementById('filterInput').value = '^restapi/.*';
+            document.getElementById('useRegex').checked = true;
+            applyFilterAndRender();
+        });
+
+        document.getElementById('filterClear').addEventListener('click', () => {
+            document.getElementById('filterInput').value = '';
+            document.getElementById('useRegex').checked = false;
+            applyFilterAndRender();
+        });
+
+        function updateButtons() {
+            document.querySelectorAll('.controls .btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            if (currentSort === 'name') {
+                document.getElementById('sortByName').classList.add('active');
+            } else {
+                document.getElementById('sortByCount').classList.add('active');
+            }
+        }
+
+        // Initial load
+        fetchStats('name');
+    </script>
+</body>
+</html>

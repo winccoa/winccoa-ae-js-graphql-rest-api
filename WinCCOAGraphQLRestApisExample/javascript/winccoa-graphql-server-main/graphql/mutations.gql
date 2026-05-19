@@ -1,0 +1,248 @@
+# Mutations - Organized by domain with namespacing
+
+type Mutation {
+  """Authentication"""
+  login(username: String!, password: String!): AuthPayload!
+
+  """
+  Logout and destroy the current session.
+  Invalidates the token and releases the associated WinccoaManager instance.
+  Returns true on success. Safe to call even if the token has already expired.
+  """
+  logout: Boolean!
+
+  """WinCC OA API mutations (backward compatibility)"""
+  api: APIMutations!
+
+  """Extra operations"""
+  extras: ExtrasMutations!
+}
+
+# API Mutations - All existing flat mutation functions available here
+type APIMutations {
+  """Data point operations"""
+  dp: DataPointMutations!
+
+  """Data point type operations"""
+  dpType: DataPointTypeMutations!
+
+  """Alert operations"""
+  alert: AlertMutations!
+
+  """CNS (Central Navigation Service) operations"""
+  cns: CnsMutations!
+}
+
+type AuthPayload {
+  token: String!
+  expiresAt: String!
+}
+
+# Data Point Mutations
+type DataPointMutations {
+  """
+  Create a new data point
+  Wraps WinCC OA function: dpCreate(dpeName, dpType, systemId, dpId)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpCreate.html
+  """
+  create(dpeName: String!, dpType: String!, systemId: Int, dpId: Int): Boolean!
+
+  """
+  Delete a data point
+  Wraps WinCC OA function: dpDelete(dpName)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpDelete.html
+  """
+  delete(dpName: String!): Boolean!
+
+  """
+  Copy a data point
+  Wraps WinCC OA function: dpCopy(source, destination, driver)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpCopy.html
+  """
+  copy(source: String!, destination: String!, driver: Int): Boolean!
+
+  """
+  Set data point element values immediately (non-blocking)
+  Wraps WinCC OA function: dpSet(dpeNames, values)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpSet.html
+  """
+  set(dpeNames: [String!]!, values: [Anytype!]!): Boolean!
+
+  """
+  Set data point element values and wait for confirmation
+  Wraps WinCC OA function: dpSetWait(dpeNames, values)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpSetWait.html
+  """
+  setWait(dpeNames: [String!]!, values: [Anytype!]!): Boolean!
+
+  """
+  Set data point element values at a specific time (non-blocking)
+  Wraps WinCC OA function: dpSetTimed(time, dpeNames, values)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpSetTimed.html
+  """
+  setTimed(time: Time!, dpeNames: [String!]!, values: [Anytype!]!): Boolean!
+
+  """
+  Set data point element values at a specific time and wait for confirmation
+  Wraps WinCC OA function: dpSetTimedWait(time, dpeNames, values)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpSetTimedWait.html
+  """
+  setTimedWait(time: Time!, dpeNames: [String!]!, values: [Anytype!]!): Boolean!
+
+  """
+  Set data point alias/display name
+  Wraps WinCC OA function: dpSetAlias(dpeName, alias)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpSetAlias.html
+  """
+  setAlias(dpeName: String!, alias: String!): Boolean!
+
+  """
+  Set data point description
+  Wraps WinCC OA function: dpSetDescription(dpeName, description)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpSetDescription.html
+  """
+  setDescription(dpeName: String!, description: String!): Boolean!
+
+  """
+  Set data point value format string
+  Wraps WinCC OA function: dpSetFormat(dpeName, format)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpSetFormat.html
+  """
+  setFormat(dpeName: String!, format: String!): Boolean!
+
+  """
+  Set data point measurement unit
+  Wraps WinCC OA function: dpSetUnit(dpeName, unit)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpSetUnit.html
+  """
+  setUnit(dpeName: String!, unit: String!): Boolean!
+}
+
+# Data Point Type Mutations
+type DataPointTypeMutations {
+  """
+  Create a new data point type
+  Wraps WinCC OA function: dpTypeCreate(startNode)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpTypeCreate.html
+  """
+  create(startNode: DpTypeNodeInput!): Boolean!
+
+  """
+  Change an existing data point type
+  Wraps WinCC OA function: dpTypeChange(startNode)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpTypeChange.html
+  """
+  change(startNode: DpTypeNodeInput!): Boolean!
+
+  """
+  Delete a data point type
+  Wraps WinCC OA function: dpTypeDelete(dpt)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpTypeDelete.html
+  """
+  delete(dpt: String!): Boolean!
+}
+
+# Alert Mutations
+type AlertMutations {
+  """
+  Set alert attributes immediately
+  Wraps WinCC OA function: alertSet(alerts, values)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/alertSet.html
+  """
+  set(alerts: [AlertTimeInput!]!, values: [Anytype!]!): Boolean!
+
+  """
+  Set alert attributes and wait for confirmation
+  Wraps WinCC OA function: alertSetWait(alerts, values)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/alertSetWait.html
+  """
+  setWait(alerts: [AlertTimeInput!]!, values: [Anytype!]!): Boolean!
+
+  """
+  Set alert attributes at a specific time
+  Wraps WinCC OA function: alertSetTimed(time, alerts, values)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/alertSetTimed.html
+  """
+  setTimed(time: Time!, alerts: [AlertTimeInput!]!, values: [Anytype!]!): Boolean!
+
+  """
+  Set alert attributes at a specific time and wait for confirmation
+  Wraps WinCC OA function: alertSetTimedWait(time, alerts, values)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/alertSetTimedWait.html
+  """
+  setTimedWait(time: Time!, alerts: [AlertTimeInput!]!, values: [Anytype!]!): Boolean!
+}
+
+# CNS Mutations
+type CnsMutations {
+  """
+  Create a new CNS view
+  Wraps WinCC OA function: cnsCreateView(view, displayName, separator)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/CNS_Ctrl/cnsCreateView.html
+  """
+  createView(view: String!, displayName: JSON!, separator: JSON): Boolean!
+
+  """
+  Add a tree to a CNS view
+  Wraps WinCC OA function: cnsAddTree(cnsParentPath, tree)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/CNS_Ctrl/cnsAddTree.html
+  """
+  addTree(cnsParentPath: String!, tree: CnsTreeNodeInput!): Boolean!
+
+  """
+  Add a node to a CNS tree
+  Wraps WinCC OA function: cnsAddNode(cnsParentPath, name, displayName, dp)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/CNS_Ctrl/cnsAddNode.html
+  """
+  addNode(cnsParentPath: String!, name: String!, displayName: JSON!, dp: String): Boolean!
+
+  """
+  Change a CNS tree
+  Wraps WinCC OA function: cnsChangeTree(cnsPath, tree)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/CNS_Ctrl/cnsChangeTree.html
+  """
+  changeTree(cnsPath: String!, tree: CnsTreeNodeInput!): Boolean!
+
+  """
+  Delete a CNS tree
+  Wraps WinCC OA function: cnsDeleteTree(cnsPath)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/CNS_Ctrl/cnsDeleteTree.html
+  """
+  deleteTree(cnsPath: String!): Boolean!
+
+  """
+  Delete a CNS view
+  Wraps WinCC OA function: cnsDeleteView(view)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/CNS_Ctrl/cnsDeleteView.html
+  """
+  deleteView(view: String!): Boolean!
+
+  """
+  Set a property on a CNS node
+  Wraps WinCC OA function: cnsSetProperty(cnsPath, key, value, valueType)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/CNS_Ctrl/cnsSetProperty.html
+  """
+  setProperty(cnsPath: String!, key: String!, value: JSON!, valueType: CtrlType!): Boolean!
+}
+
+# Extras Mutations
+type ExtrasMutations {
+  """
+  Test dummy mutation for testing and development purposes.
+  This is a helper function for development and testing, not a WinCC OA API function.
+  No underlying WinCC OA function is called.
+  """
+  testDummy: TestDummyResult!
+}
+
+# Test Dummy Result
+type TestDummyResult {
+  """Success status of the test mutation"""
+  success: Boolean!
+
+  """Message from the test mutation"""
+  message: String!
+
+  """Timestamp when the test was executed"""
+  timestamp: Time!
+}

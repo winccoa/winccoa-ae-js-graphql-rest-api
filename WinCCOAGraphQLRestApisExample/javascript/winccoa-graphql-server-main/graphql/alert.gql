@@ -1,0 +1,210 @@
+# Alert types - Alert/alarm handling
+
+"""WinCC OA alert handling attributes"""
+enum AlertAttributeName {
+  # Basic alert information
+  """Alert text message"""
+  TEXT
+  """Alert abbreviation"""
+  ABBR
+  """Alert value that triggered the alert"""
+  VALUE
+  """Alert value with 64-bit status"""
+  VALUE_STATUS64
+  """Priority value (0-64)"""
+  PRIORITY
+  """Alert class"""
+  CLASS
+  """Alert comment"""
+  COMMENT
+
+  # Acknowledgement related
+  """Acknowledgement state (0=not acknowledged, 1=acknowledged, 2=came and went)"""
+  ACK_STATE
+  """User who acknowledged the alert"""
+  ACK_USER
+  """Time when alert was acknowledged"""
+  ACK_TIME
+  """Acknowledgement type"""
+  ACK_TYPE
+  """Acknowledgement obligation"""
+  ACK_OBLIG
+  """Whether alert can be acknowledged"""
+  ACKABLE
+  """Single acknowledgement flag"""
+  SINGLE_ACK
+  """Oldest acknowledgement"""
+  OLDEST_ACK
+  """Inactive acknowledgement"""
+  INACT_ACK
+
+  # Timing
+  """Time when alert came"""
+  CAME_TIME
+  """Index of came time"""
+  CAME_TIME_IDX
+  """Time when alert went"""
+  GONE_TIME
+  """Index of gone time"""
+  GONE_TIME_IDX
+  """System time"""
+  SYSTEM_TIME
+  """Deletion date"""
+  DEL_DATE
+
+  # State
+  """Alert state"""
+  STATE
+  """Whether alert is active"""
+  ACTIVE
+  """Whether alert is inactive"""
+  INACTIVE
+  """Alert direction (came/went)"""
+  DIRECTION
+  """Whether alert is visible"""
+  VISIBLE
+  """Whether alert is obsolete"""
+  OBSOLETE
+
+  # Actual state information
+  """Actual alert text"""
+  ACT_TEXT
+  """Actual priority"""
+  ACT_PRIOR
+  """Actual state"""
+  ACT_STATE
+  """Actual state text"""
+  ACT_STATE_TEXT
+  """Actual state priority"""
+  ACT_STATE_PRIOR
+  """Actual state color"""
+  ACT_STATE_COLOR
+  """Actual state foreground color"""
+  ACT_STATE_FORE_COLOR
+  """Actual state font style"""
+  ACT_STATE_FONT_STYLE
+  """Actual range"""
+  ACT_RANGE
+  """Actual state range"""
+  ACT_STATE_RANGE
+
+  # Display/Formatting
+  """Alert background color"""
+  ALERT_COLOR
+  """Alert foreground color"""
+  ALERT_FORE_COLOR
+  """Alert font style"""
+  ALERT_FONT_STYLE
+  """Mapped text"""
+  MAPPED_TEXT
+
+  # Filtering and organization
+  """Whether filter is active"""
+  FILTER_ACTIVE
+  """Alert order"""
+  ORDER
+  """Alert parameter"""
+  PARAM
+  """Discrete states"""
+  DISCRETE_STATES
+  """Number of ranges"""
+  NUM_RANGES
+
+  # Destination
+  """Alert destination"""
+  DEST
+  """Alert destination text"""
+  DEST_TEXT
+
+  # Archiving and deletion
+  """Archive flag"""
+  ARCHIVE
+  """Delete flag"""
+  DELETE
+  """Last alert flag"""
+  LAST
+  """Last of all alerts flag"""
+  LAST_OF_ALL
+
+  # Escalation and partner
+  """Escalation class"""
+  ESCALATION_CLASS
+  """Partner system"""
+  PARTNER
+  """Partner alert ID"""
+  PARTNER_ALERT_ID
+  """Partner index"""
+  PARTN_IDX
+
+  # Summary/aggregation
+  """Sum flag"""
+  SUM
+  """Sum alerts"""
+  SUMALERTS
+  """Alerts collection"""
+  ALERTS
+  """Summed alerts"""
+  SUMMED_ALERTS
+  """Count of summed alerts"""
+  SUMMED_ALERTS_COUNT
+  """Summed abbreviations"""
+  SUMMED_ABBR
+  """Summed classes"""
+  SUMMED_CLASSES
+  """Summed colors"""
+  SUMMED_COLORS
+  """Summed priorities"""
+  SUMMED_PRIOS
+  """Summed states"""
+  SUMMED_STATES
+}
+
+type Alert {
+  """Alert timestamp"""
+  time: Time!
+
+  """Alert count/sequence number"""
+  count: Int!
+
+  """Data point element name"""
+  dpeName: String!
+
+  """Data point this alert belongs to"""
+  dp: DataPoint!
+
+  """
+  Get a specific alert attribute by name
+  Wraps WinCC OA function: alertGet(alertsTime, dpeNames, alertCount)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/alertGet.html
+  """
+  attribute(name: AlertAttributeName!): JSON
+
+  """
+  Common alert attributes (convenience accessors)
+  Wraps WinCC OA function: alertGet(alertsTime, dpeNames, alertCount)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/alertGet.html
+  """
+  text: String
+  acknowledged: Boolean
+  acknowledgedBy: String
+  acknowledgedAt: Time
+  priority: Int
+  severity: String
+}
+
+input AlertTimeInput {
+  time: Time!
+  count: Int!
+  dpe: String!
+}
+
+type AlertPeriodResult {
+  alertTimes: [AlertTime!]!
+  values: [JSON!]!
+}
+
+type AlertTime {
+  time: Time!
+  count: Int!
+  dpe: String!
+}

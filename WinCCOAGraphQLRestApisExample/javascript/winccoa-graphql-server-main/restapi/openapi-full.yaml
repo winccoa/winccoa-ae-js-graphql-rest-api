@@ -1,0 +1,2492 @@
+openapi: 3.0.0
+info:
+  title: WinCC OA REST API
+  version: 1.0.0
+  description: |
+    REST API for WinCC OA GraphQL Server - provides HTTP endpoints for all WinCC OA operations including:
+    - Data point management (CRUD, value operations)
+    - Data point type management
+    - Tag queries with metadata
+    - Alert handling
+    - CNS (Central Navigation Service) operations
+    - System information and redundancy
+    - OPC UA configuration
+  contact:
+    name: API Support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:4000
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication and token management
+  - name: Data Points
+    description: Data point CRUD operations and value management
+  - name: Data Point Types
+    description: Data point type structure management
+  - name: Tags
+    description: Tag queries with value, timestamp, and status
+  - name: Alerts
+    description: Alert handling and historical alert queries
+  - name: CNS - Views
+    description: CNS view management
+  - name: CNS - Trees
+    description: CNS tree and node structure management
+  - name: CNS - Nodes
+    description: CNS node operations and queries
+  - name: CNS - Validation
+    description: CNS validation utilities
+  - name: System
+    description: System information, version, and redundancy
+  - name: Extras
+    description: Additional operations (OPC UA configuration, etc.)
+  - name: Subscriptions
+    description: Server-Sent Events (SSE) endpoints for real-time data point subscriptions
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /restapi/v1/auth/login
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          format: password
+          example: password
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T13:00:00.000Z"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Missing required parameter
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    ElementType:
+      type: string
+      enum:
+        - BOOL
+        - UINT8
+        - INT32
+        - INT64
+        - FLOAT
+        - DOUBLE
+        - BIT
+        - BIT32
+        - BIT64
+        - STRING
+        - TIME
+        - DPID
+        - LANGSTRING
+        - BLOB
+        - MIXED
+        - DYN_BOOL
+        - DYN_UINT8
+        - DYN_INT32
+        - DYN_INT64
+        - DYN_FLOAT
+        - DYN_DOUBLE
+        - DYN_BIT
+        - DYN_BIT32
+        - DYN_BIT64
+        - DYN_STRING
+        - DYN_TIME
+        - DYN_DPID
+        - DYN_LANGSTRING
+        - DYN_BLOB
+
+    CtrlType:
+      type: string
+      enum:
+        - TIME_VAR
+        - BOOL_VAR
+        - INT_VAR
+        - UINT_VAR
+        - FLOAT_VAR
+        - STRING_VAR
+        - BIT32_VAR
+        - CHAR_VAR
+        - DYN_TIME_VAR
+        - DYN_BOOL_VAR
+        - DYN_INT_VAR
+        - DYN_UINT_VAR
+        - DYN_FLOAT_VAR
+        - DYN_STRING_VAR
+        - DYN_BIT32_VAR
+        - DYN_CHAR_VAR
+        - ATIME_VAR
+        - LANGSTRING_VAR
+        - BLOB_VAR
+        - LONG_VAR
+        - ULONG_VAR
+        - BIT64_VAR
+
+    DpTypeNode:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          example: value
+        type:
+          $ref: '#/components/schemas/ElementType'
+        refName:
+          type: string
+          example: RefType
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/DpTypeNode'
+        newName:
+          type: string
+          example: newValue
+
+    Tag:
+      type: object
+      properties:
+        name:
+          type: string
+          example: ExampleDP_1.value
+        value:
+          description: Current tag value (any type)
+          example: 42.5
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+        status:
+          type: object
+          example: { "_online": { "_value": true } }
+
+    TagValue:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          description: Historical value (any type)
+
+    TagHistory:
+      type: object
+      properties:
+        name:
+          type: string
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagValue'
+
+    AlertTime:
+      type: object
+      required: [time, count, dpe]
+      properties:
+        time:
+          type: string
+          format: date-time
+        count:
+          type: integer
+        dpe:
+          type: string
+
+    CnsTreeNode:
+      type: object
+      required: [name, displayName]
+      properties:
+        name:
+          type: string
+          example: myNode
+        displayName:
+          type: object
+          example: { "en_US": "My Node", "de_DE": "Mein Knoten" }
+        dp:
+          type: string
+          example: ExampleDP.
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CnsTreeNode'
+
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Unauthorized
+            message: Missing or invalid authentication token
+
+    Forbidden:
+      description: Insufficient permissions (admin role required)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Forbidden
+            message: Admin role required
+
+paths:
+  # Authentication
+  /restapi/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login to get JWT token
+      description: Authenticate with username and password to receive a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /restapi/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout and destroy session
+      description: |
+        Invalidates the current JWT token and destroys the associated WinccoaManager
+        session. The token cannot be used after a successful logout.
+        This operation is idempotent — calling it with an already-expired or
+        already-invalidated token returns `{ "success": true }`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Health Check
+  /restapi/v1/health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Check API health status (no authentication required)
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  service:
+                    type: string
+                    example: WinCC OA REST API
+                  uptime:
+                    type: number
+                    example: 12345.67
+
+  # Usage Statistics
+  /restapi/v1/stats:
+    get:
+      tags: [System]
+      summary: Get API usage statistics
+      description: |
+        Retrieve usage statistics for all GraphQL and REST API endpoints (no authentication required).
+        Data is tracked in-memory and persisted to disk every 10 seconds.
+      parameters:
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [name, count]
+            default: name
+          description: Sort results by name or call count
+          example: count
+      responses:
+        '200':
+          description: Usage statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stats:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: graphql/query/dataPoint
+                          description: API endpoint name (prefixed with graphql/ or restapi/)
+                        count:
+                          type: integer
+                          example: 42
+                          description: Number of times this endpoint was called
+                  total:
+                    type: integer
+                    example: 15
+                    description: Total number of unique endpoints tracked
+                  sortBy:
+                    type: string
+                    example: count
+                    description: Current sort method applied
+              example:
+                stats:
+                  - name: graphql/query/dataPoint
+                    count: 42
+                  - name: restapi/GET /health
+                    count: 35
+                  - name: graphql/mutation/dpSet
+                    count: 18
+                total: 3
+                sortBy: count
+
+  # Data Points - List and Create
+  /restapi/v1/datapoints:
+    get:
+      tags: [Data Points]
+      summary: List data points
+      description: Search for data points by pattern
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pattern
+          in: query
+          schema:
+            type: string
+          description: Search pattern (wildcards supported)
+          example: "ExampleDP_*"
+        - name: dpType
+          in: query
+          schema:
+            type: string
+          description: Filter by data point type
+        - name: ignoreCase
+          in: query
+          schema:
+            type: boolean
+          description: Case-insensitive search
+      responses:
+        '200':
+          description: List of data points
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  datapoints:
+                    type: array
+                    items:
+                      type: string
+                    example: ["ExampleDP_Arg1.", "ExampleDP_Arg2."]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Data Points]
+      summary: Create data point
+      description: Create a new data point (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dpeName, dpType]
+              properties:
+                dpeName:
+                  type: string
+                  example: "MyDataPoint."
+                dpType:
+                  type: string
+                  example: "ExampleDP_Arg"
+                systemId:
+                  type: integer
+                  example: 1
+                dpId:
+                  type: integer
+                  example: 100
+      responses:
+        '200':
+          description: Data point created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # Data Points - Value Operations
+  /restapi/v1/datapoints/{dpeName}/value:
+    get:
+      tags: [Data Points]
+      summary: Get data point value
+      description: Retrieve current value of a data point element
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Data point element name (URL encoded)
+          example: "ExampleDP_Arg1.value"
+      responses:
+        '200':
+          description: Current value
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    description: Current value (any type)
+                    example: 42.5
+
+    put:
+      tags: [Data Points]
+      summary: Set data point value
+      description: Set the value of a data point element (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Data point element name (URL encoded)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  description: New value (any type)
+                  example: 50.0
+      responses:
+        '200':
+          description: Value set successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /restapi/v1/datapoints/{dpeName}/value/wait:
+    put:
+      tags: [Data Points]
+      summary: Set value with wait
+      description: Set value and wait for confirmation (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  example: 50.0
+      responses:
+        '200':
+          description: Value set successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/datapoints/{dpeName}/value/timed:
+    put:
+      tags: [Data Points]
+      summary: Set value with timestamp
+      description: Set value with a specific timestamp (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value, time]
+              properties:
+                value:
+                  example: 50.0
+                time:
+                  type: string
+                  format: date-time
+                  example: "2024-01-01T12:00:00Z"
+      responses:
+        '200':
+          description: Value set successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/datapoints/{dpeName}/value/timed-wait:
+    put:
+      tags: [Data Points]
+      summary: Set value with timestamp and wait
+      description: Set value with timestamp and wait for confirmation (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value, time]
+              properties:
+                value:
+                  example: 50.0
+                time:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Value set successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/datapoints/{dpName}:
+    delete:
+      tags: [Data Points]
+      summary: Delete data point
+      description: Delete a data point (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data point deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/datapoints/{source}/copy:
+    post:
+      tags: [Data Points]
+      summary: Copy data point
+      description: Copy a data point (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: source
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destination]
+              properties:
+                destination:
+                  type: string
+                  example: "NewDataPoint."
+                driver:
+                  type: integer
+                  example: 1
+      responses:
+        '200':
+          description: Data point copied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/datapoints/{dpeName}/exists:
+    get:
+      tags: [Data Points]
+      summary: Check if data point exists
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Existence check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+
+  /restapi/v1/datapoints/{dpeName}/type:
+    get:
+      tags: [Data Points]
+      summary: Get element type
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Element type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  elementType:
+                    $ref: '#/components/schemas/ElementType'
+
+  /restapi/v1/datapoints/{dpeName}/dp-type:
+    get:
+      tags: [Data Points]
+      summary: Get data point type name
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data point type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dpType:
+                    type: string
+                    example: "ExampleDP_Arg"
+
+  /restapi/v1/datapoints/{dpeName}/type-ref:
+    get:
+      tags: [Data Points]
+      summary: Get type reference name
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Type reference
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  typeRef:
+                    type: string
+
+  /restapi/v1/datapoints/{dpeName}/value/max-age:
+    get:
+      tags: [Data Points]
+      summary: Get value with max age
+      description: Get value from driver if older than specified age
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: age
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Maximum age in milliseconds
+          example: 1000
+      responses:
+        '200':
+          description: Value retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    example: 42.5
+
+  /restapi/v1/datapoints/{dpeName}/history:
+    get:
+      tags: [Data Points]
+      summary: Get historic values
+      description: Get historic values for a time period
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          example: "2024-01-01T00:00:00Z"
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          example: "2024-01-01T23:59:59Z"
+      responses:
+        '200':
+          description: Historic values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  values:
+                    type: array
+                    items:
+                      type: object
+
+  /restapi/v1/datapoints/{dpAttributeName}/attribute-type:
+    get:
+      tags: [Data Points]
+      summary: Get attribute type
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpAttributeName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Attribute type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ctrlType:
+                    $ref: '#/components/schemas/CtrlType'
+
+  /restapi/v1/query:
+    get:
+      tags: [Data Points]
+      summary: Execute SQL-like query on data points (GET)
+      description: |
+        Retrieves attribute values with the help of SQL statements passed as a
+        query parameter. Returns the same table-like structure as the POST variant:
+        - [0][0] is empty
+        - [0][1..n] are column headers (attribute names)
+        - [1..n][0] are line names (data point names)
+        - [1..n][1..n] are the values
+
+        Example: `GET /restapi/v1/query?query=SELECT%20'_original.._value'%20FROM%20'ExampleDP_Arg*'`
+
+        This is equivalent to the WinCC OA `dpQuery()` function.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SQL statement for querying data points
+          example: "SELECT '_original.._value' FROM 'ExampleDP_Arg*'"
+      responses:
+        '200':
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    description: Table-like result structure
+                    items:
+                      type: array
+                      items:
+                        description: Cell value (any type)
+                    example:
+                      - ["", ":_original.._value"]
+                      - ["System1:ExampleDP_Arg1.", 2.43]
+                      - ["System1:ExampleDP_Arg2.", 5.76]
+        '400':
+          description: Bad request - query parameter missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Data Points]
+      summary: Execute SQL-like query on data points (POST)
+      description: |
+        Retrieves attribute values with the help of SQL statements passed in the
+        request body. Returns a table-like structure where:
+        - [0][0] is empty
+        - [0][1..n] are column headers (attribute names)
+        - [1..n][0] are line names (data point names)
+        - [1..n][1..n] are the values
+
+        Example query: `SELECT '_original.._value' FROM 'ExampleDP_Arg*'`
+
+        This is equivalent to the WinCC OA `dpQuery()` function.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  description: SQL statement for querying data points
+                  example: "SELECT '_original.._value' FROM 'ExampleDP_Arg*'"
+      responses:
+        '200':
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    description: Table-like result structure
+                    items:
+                      type: array
+                      items:
+                        description: Cell value (any type)
+                    example:
+                      - ["", ":_original.._value"]
+                      - ["System1:ExampleDP_Arg1.", 2.43]
+                      - ["System1:ExampleDP_Arg2.", 5.76]
+        '400':
+          description: Bad request - query parameter missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Data Point Types
+  /restapi/v1/datapoint-types:
+    get:
+      tags: [Data Point Types]
+      summary: List data point types
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pattern
+          in: query
+          schema:
+            type: string
+        - name: systemId
+          in: query
+          schema:
+            type: integer
+        - name: includeEmpty
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of types
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dpTypes:
+                    type: array
+                    items:
+                      type: string
+
+    post:
+      tags: [Data Point Types]
+      summary: Create data point type
+      description: Create a new data point type (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startNode]
+              properties:
+                startNode:
+                  $ref: '#/components/schemas/DpTypeNode'
+      responses:
+        '200':
+          description: Type created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/datapoint-types/{dpt}/structure:
+    get:
+      tags: [Data Point Types]
+      summary: Get type structure
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpt
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: includeSubTypes
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Type structure
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  structure:
+                    $ref: '#/components/schemas/DpTypeNode'
+
+  /restapi/v1/datapoint-types/{dpt}:
+    put:
+      tags: [Data Point Types]
+      summary: Change data point type
+      description: Modify existing data point type (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpt
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startNode]
+              properties:
+                startNode:
+                  $ref: '#/components/schemas/DpTypeNode'
+      responses:
+        '200':
+          description: Type changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+    delete:
+      tags: [Data Point Types]
+      summary: Delete data point type
+      description: Delete a data point type (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpt
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Type deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/datapoint-types/{dpt}/references:
+    get:
+      tags: [Data Point Types]
+      summary: Get type references
+      description: Get references to other DPTs in a DPT
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpt
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Type references
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dptNames:
+                    type: array
+                    items:
+                      type: string
+                  dpePaths:
+                    type: array
+                    items:
+                      type: string
+
+  /restapi/v1/datapoint-types/{reference}/usages:
+    get:
+      tags: [Data Point Types]
+      summary: Get type usages
+      description: Get all DPTs that contain a specific DPT as reference
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Type usages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dptNames:
+                    type: array
+                    items:
+                      type: string
+                  dpePaths:
+                    type: array
+                    items:
+                      type: string
+
+  # Tags
+  /restapi/v1/tags:
+    get:
+      tags: [Tags]
+      summary: Get tags
+      description: Get multiple tags with value, timestamp, and status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeNames
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of data point element names
+          example: "ExampleDP_1.value,ExampleDP_2.value"
+      responses:
+        '200':
+          description: Tags retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+
+  /restapi/v1/tags/history:
+    get:
+      tags: [Tags]
+      summary: Get tag history
+      description: Get historical data for multiple tags
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeNames
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of data point element names
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tag history retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TagHistory'
+
+  # Alerts
+  /restapi/v1/alerts:
+    get:
+      tags: [Alerts]
+      summary: Get alerts
+      description: Get alert attributes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: alertsTime
+          in: query
+          required: true
+          schema:
+            type: string
+          description: JSON-encoded array of alert times
+        - name: dpeNames
+          in: query
+          required: true
+          schema:
+            type: string
+          description: JSON-encoded array of DPE names
+        - name: alertCount
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Alert values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  values:
+                    type: array
+
+    put:
+      tags: [Alerts]
+      summary: Set alert attributes
+      description: Set alert attributes (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [alerts, values]
+              properties:
+                alerts:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AlertTime'
+                values:
+                  type: array
+      responses:
+        '200':
+          description: Alerts set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/alerts/period:
+    get:
+      tags: [Alerts]
+      summary: Get alerts for period
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: names
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated alert attribute names
+      responses:
+        '200':
+          description: Period alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alertTimes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AlertTime'
+                  values:
+                    type: array
+
+  /restapi/v1/alerts/wait:
+    put:
+      tags: [Alerts]
+      summary: Set alerts with wait
+      description: Set alert attributes with wait (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [alerts, values]
+              properties:
+                alerts:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AlertTime'
+                values:
+                  type: array
+      responses:
+        '200':
+          description: Alerts set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/alerts/timed:
+    put:
+      tags: [Alerts]
+      summary: Set alerts with timestamp
+      description: Set alert attributes with timestamp (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [time, alerts, values]
+              properties:
+                time:
+                  type: string
+                  format: date-time
+                alerts:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AlertTime'
+                values:
+                  type: array
+      responses:
+        '200':
+          description: Alerts set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/alerts/timed-wait:
+    put:
+      tags: [Alerts]
+      summary: Set alerts with timestamp and wait
+      description: Set alert attributes with timestamp and wait (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [time, alerts, values]
+              properties:
+                time:
+                  type: string
+                  format: date-time
+                alerts:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AlertTime'
+                values:
+                  type: array
+      responses:
+        '200':
+          description: Alerts set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # CNS - Views
+  /restapi/v1/cns/views/{systemName}:
+    get:
+      tags: [CNS - Views]
+      summary: Get views for system
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: systemName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Views list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  views:
+                    type: array
+                    items:
+                      type: string
+
+  /restapi/v1/cns/views:
+    post:
+      tags: [CNS - Views]
+      summary: Create view
+      description: Create a new CNS view (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [view, displayName]
+              properties:
+                view:
+                  type: string
+                displayName:
+                  type: object
+                separator:
+                  type: object
+      responses:
+        '200':
+          description: View created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/cns/views/{view}:
+    delete:
+      tags: [CNS - Views]
+      summary: Delete view
+      description: Delete a view with all its trees (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: view
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: View deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/cns/views/{view}/exists:
+    get:
+      tags: [CNS - Views]
+      summary: Check if view exists
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: view
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Existence check
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+
+  # CNS - Trees
+  /restapi/v1/cns/trees/{view}:
+    get:
+      tags: [CNS - Trees]
+      summary: Get trees in view
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: view
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trees list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trees:
+                    type: array
+                    items:
+                      type: string
+
+  /restapi/v1/cns/trees:
+    post:
+      tags: [CNS - Trees]
+      summary: Add tree
+      description: Create a tree or sub-tree (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnsParentPath, tree]
+              properties:
+                cnsParentPath:
+                  type: string
+                tree:
+                  $ref: '#/components/schemas/CnsTreeNode'
+      responses:
+        '200':
+          description: Tree added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/cns/trees/{cnsPath}:
+    put:
+      tags: [CNS - Trees]
+      summary: Change tree
+      description: Replace a tree or sub-tree (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tree]
+              properties:
+                tree:
+                  $ref: '#/components/schemas/CnsTreeNode'
+      responses:
+        '200':
+          description: Tree changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+    delete:
+      tags: [CNS - Trees]
+      summary: Delete tree
+      description: Delete a tree, sub-tree, or node (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tree deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/cns/trees/{cnsPath}/exists:
+    get:
+      tags: [CNS - Trees]
+      summary: Check if tree exists
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Existence check
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+
+  # CNS - Nodes
+  /restapi/v1/cns/nodes:
+    post:
+      tags: [CNS - Nodes]
+      summary: Add node
+      description: Add a new node to a tree (Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnsParentPath, name, displayName]
+              properties:
+                cnsParentPath:
+                  type: string
+                name:
+                  type: string
+                displayName:
+                  type: object
+                dp:
+                  type: string
+      responses:
+        '200':
+          description: Node added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /restapi/v1/cns/nodes/{cnsPath}/children:
+    get:
+      tags: [CNS - Nodes]
+      summary: Get children nodes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Children list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  children:
+                    type: array
+                    items:
+                      type: string
+
+  /restapi/v1/cns/nodes/{cnsPath}/parent:
+    get:
+      tags: [CNS - Nodes]
+      summary: Get parent node
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Parent path
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  parent:
+                    type: string
+
+  /restapi/v1/cns/nodes/{cnsPath}/root:
+    get:
+      tags: [CNS - Nodes]
+      summary: Get root node
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Root path
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  root:
+                    type: string
+
+  /restapi/v1/cns/nodes/{cnsPath}/display-name:
+    get:
+      tags: [CNS - Nodes]
+      summary: Get display name
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Display name
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  displayName:
+                    type: object
+
+  /restapi/v1/cns/nodes/{cnsPath}/display-path:
+    get:
+      tags: [CNS - Nodes]
+      summary: Get display path
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Display path
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  displayPath:
+                    type: object
+
+  /restapi/v1/cns/nodes/{cnsPath}/id:
+    get:
+      tags: [CNS - Nodes]
+      summary: Get linked data point
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Linked ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+
+  /restapi/v1/cns/nodes/{cnsPath}/exists:
+    get:
+      tags: [CNS - Nodes]
+      summary: Check if node exists
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Existence check
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+
+  /restapi/v1/cns/nodes/search/by-name:
+    get:
+      tags: [CNS - Nodes]
+      summary: Search nodes by name
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pattern
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: viewPath
+          in: query
+          schema:
+            type: string
+        - name: searchMode
+          in: query
+          schema:
+            type: integer
+        - name: langIdx
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Matching nodes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      type: string
+
+  /restapi/v1/cns/nodes/search/by-data:
+    get:
+      tags: [CNS - Nodes]
+      summary: Search nodes by data point
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: integer
+        - name: viewPath
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching nodes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      type: string
+
+  /restapi/v1/cns/nodes/search/id-set:
+    get:
+      tags: [CNS - Nodes]
+      summary: Search linked IDs by pattern
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pattern
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: viewPath
+          in: query
+          schema:
+            type: string
+        - name: searchMode
+          in: query
+          schema:
+            type: integer
+        - name: langIdx
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Matching IDs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ids:
+                    type: array
+                    items:
+                      type: string
+
+  /restapi/v1/cns/nodes/{cnsPath}/property/{key}:
+    get:
+      tags: [CNS - Nodes]
+      summary: Get node property
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Property value
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    description: Property value (any type)
+
+  /restapi/v1/cns/nodes/{cnsPath}/properties:
+    get:
+      tags: [CNS - Nodes]
+      summary: Get property keys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Property keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: string
+
+  /restapi/v1/cns/nodes/{cnsPath}/property:
+    put:
+      tags: [CNS - Nodes]
+      summary: Set node property
+      description: Set/add property for a node (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cnsPath
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key, value, valueType]
+              properties:
+                key:
+                  type: string
+                value:
+                  description: Property value (any type)
+                valueType:
+                  $ref: '#/components/schemas/CtrlType'
+      responses:
+        '200':
+          description: Property set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # CNS - Validation
+  /restapi/v1/cns/validation/check-id:
+    get:
+      tags: [CNS - Validation]
+      summary: Validate CNS ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+
+  /restapi/v1/cns/validation/check-name:
+    post:
+      tags: [CNS - Validation]
+      summary: Validate CNS display name
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: object
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: integer
+                    description: "0=valid, -1=incomplete, -2=invalid chars"
+
+  /restapi/v1/cns/validation/check-separator:
+    get:
+      tags: [CNS - Validation]
+      summary: Validate CNS separator
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: separator
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+
+  # System
+  /restapi/v1/system/version:
+    get:
+      tags: [System]
+      summary: Get version information
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Version info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  api:
+                    type: object
+                    properties:
+                      version:
+                        type: integer
+                  winccoa:
+                    type: object
+                    properties:
+                      display:
+                        type: string
+                      major:
+                        type: integer
+                      minor:
+                        type: integer
+                      numeric:
+                        type: integer
+                      numeric_full:
+                        type: integer
+                      patch:
+                        type: integer
+                      platform:
+                        type: string
+                      revision:
+                        type: integer
+                      version:
+                        type: string
+
+  /restapi/v1/system/redundancy/active:
+    get:
+      tags: [System]
+      summary: Check if redundancy is active
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Redundancy status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active:
+                    type: boolean
+
+  /restapi/v1/system/redundancy/configured:
+    get:
+      tags: [System]
+      summary: Check if redundancy is configured
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Redundancy configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured:
+                    type: boolean
+
+  /restapi/v1/system/id:
+    get:
+      tags: [System]
+      summary: Get system ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: systemName
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: System ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  systemId:
+                    type: integer
+
+  /restapi/v1/system/name:
+    get:
+      tags: [System]
+      summary: Get system name
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: systemId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: System name
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  systemName:
+                    type: string
+
+  # Extras
+  /restapi/v1/extras/test-dummy:
+    get:
+      tags: [Extras]
+      summary: Test dummy endpoint (GET)
+      description: Placeholder endpoint for custom REST extensions. Returns a success response with a timestamp.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dummy response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Test dummy GET executed successfully
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Extras]
+      summary: Test dummy endpoint (POST)
+      description: Placeholder endpoint for custom REST extensions. Accepts any body and returns a success response with a timestamp.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Dummy response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Test dummy POST executed successfully
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /restapi/v1/subscriptions/dp-connect:
+    get:
+      tags: [Subscriptions]
+      summary: Subscribe to data point changes (SSE)
+      description: |
+        Opens a Server-Sent Events stream that emits a JSON event whenever the
+        subscribed data point elements change.
+
+        Wraps WinCC OA `dpConnect(callback, dpeNames, answer)`. The connection is
+        cleaned up automatically when the client closes the stream.
+
+        Each SSE event has the form:
+        ```
+        data: {"dpeNames":[...],"values":[...],"type":"...","error":null}
+        ```
+
+        To subscribe to multiple DPEs repeat the `dpeNames` parameter:
+        `?dpeNames=Dp1:_online.._value&dpeNames=Dp2:_online.._value`
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dpeNames
+          in: query
+          required: true
+          description: One or more data point element names to monitor. Repeat the parameter for multiple DPEs.
+          style: form
+          explode: true
+          schema:
+            oneOf:
+              - type: string
+              - type: array
+                items:
+                  type: string
+          example: ExampleDP_Arg1:_online.._value
+        - name: answer
+          in: query
+          required: false
+          description: If true (default), send the current value immediately on connect in addition to future updates.
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: SSE stream of data point update events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Newline-delimited SSE stream. Each event is a `data:` line containing JSON:
+                  { "dpeNames": ["dp:elem"], "values": [42], "type": "update", "error": null }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /restapi/v1/subscriptions/dp-query-connect-single:
+    get:
+      tags: [Subscriptions]
+      summary: Subscribe to query results — single (most recent) result set (SSE)
+      description: |
+        Opens a Server-Sent Events stream that emits a JSON event whenever the
+        dpQuery result changes, returning only the most recent result set.
+
+        Wraps WinCC OA `dpQueryConnectSingle(callback, answer, query, blockingTime)`.
+
+        Each SSE event has the form:
+        ```
+        data: {"values":[[header,...],[row,...]],"type":"update","error":null}
+        ```
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: dpQuery SQL-like query string.
+          schema:
+            type: string
+          example: "SELECT '_original.._value' FROM 'ExampleDP_Arg*'"
+        - name: answer
+          in: query
+          required: false
+          description: If true (default), send the current result immediately on connect.
+          schema:
+            type: boolean
+            default: true
+        - name: blockingTime
+          in: query
+          required: false
+          description: Blocking time in milliseconds for query updates.
+          schema:
+            type: number
+      responses:
+        '200':
+          description: SSE stream of query result events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Newline-delimited SSE stream. Each event is a `data:` line containing JSON:
+                  { "values": [["header"], ["row"]], "type": "update", "error": null }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /restapi/v1/subscriptions/dp-query-connect-all:
+    get:
+      tags: [Subscriptions]
+      summary: Subscribe to query results — complete result set on every update (SSE)
+      description: |
+        Opens a Server-Sent Events stream that emits a JSON event whenever the
+        dpQuery result changes, returning the complete result set each time.
+
+        Wraps WinCC OA `dpQueryConnectAll(callback, answer, query, blockingTime)`.
+
+        Each SSE event has the form:
+        ```
+        data: {"values":[[header,...],[row,...]],"type":"update","error":null}
+        ```
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: dpQuery SQL-like query string.
+          schema:
+            type: string
+          example: "SELECT '_original.._value' FROM 'ExampleDP_Arg*'"
+        - name: answer
+          in: query
+          required: false
+          description: If true (default), send the current result immediately on connect.
+          schema:
+            type: boolean
+            default: true
+        - name: blockingTime
+          in: query
+          required: false
+          description: Blocking time in milliseconds for query updates.
+          schema:
+            type: number
+      responses:
+        '200':
+          description: SSE stream of query result events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Newline-delimited SSE stream. Each event is a `data:` line containing JSON:
+                  { "values": [["header"], ["row"]], "type": "update", "error": null }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'

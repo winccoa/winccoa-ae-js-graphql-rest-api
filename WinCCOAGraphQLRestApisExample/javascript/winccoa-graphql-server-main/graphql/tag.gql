@@ -1,0 +1,55 @@
+# Tag type - Convenience wrapper with value + metadata
+
+type Tag {
+  """Tag name"""
+  name: String!
+
+  """
+  Current value
+  Wraps WinCC OA function: dpGet(dpeNames)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGet.html
+  """
+  value: JSON!
+
+  """
+  Timestamp of last update
+  Wraps WinCC OA function: dpGet() with _online.._stime attribute
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGet.html
+  """
+  timestamp: Time
+
+  """
+  Status information
+  Wraps WinCC OA function: dpGet() with _online.._status attribute
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGet.html
+  """
+  status: ElementStatus
+
+  """Underlying data point element"""
+  element: DataPointElement!
+
+  """
+  Historical values for this tag
+  Wraps WinCC OA function: dpGetPeriod(startTime, endTime, dpeNames)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpGetPeriod.html
+  """
+  history(
+    startTime: Time!
+    endTime: Time!
+    limit: Int
+    offset: Int
+  ): TagHistory!
+}
+
+type TagHistory {
+  """Tag name"""
+  name: String!
+
+  """Historical values"""
+  values: [TagValue!]!
+}
+
+type TagValue {
+  timestamp: Time!
+  value: JSON!
+}

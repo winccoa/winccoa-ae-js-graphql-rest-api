@@ -1,0 +1,50 @@
+# Subscriptions - Real-time updates
+
+type Subscription {
+  """
+  Establishes a connection to receive updates for specified data point elements
+  Wraps WinCC OA function: dpConnect(dpeNames, answer)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpConnect.html
+  """
+  dpConnect(dpeNames: [String!]!, answer: Boolean): DpConnectUpdate!
+
+  """
+  Connects to receive updates for a single query result
+  Wraps WinCC OA function: dpQueryConnectSingle(query, answer, blockingTime)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpQueryConnectSingle.html
+  """
+  dpQueryConnectSingle(query: String!, answer: Boolean, blockingTime: Int): DpQueryConnectUpdate!
+
+  """
+  Connects to receive updates for all matching query results
+  Wraps WinCC OA function: dpQueryConnectAll(query, answer, blockingTime)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpQueryConnectAll.html
+  """
+  dpQueryConnectAll(query: String!, answer: Boolean, blockingTime: Int): DpQueryConnectUpdate!
+
+  """
+  Establishes a typed connection to receive updates for specified data point elements
+  Wraps WinCC OA function: dpConnect(dpeNames, answer)
+  @see https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlA_D/dpConnect.html
+  """
+  tagSubscribe(dpeNames: [String!]!, answer: Boolean): TagUpdate!
+}
+
+type DpConnectUpdate {
+  dpeNames: [String!]!
+  values: [JSON!]!
+  type: String!
+  error: JSON
+}
+
+type DpQueryConnectUpdate {
+  values: [[JSON!]!]!
+  type: String!
+  error: JSON
+}
+
+type TagUpdate {
+  tags: [Tag!]!
+  type: String!
+  error: JSON
+}

@@ -1,0 +1,24 @@
+{
+  "RepoName": "WinCC OA GraphQL & REST API Server Example",
+  "Keywords": [
+    "integration",
+    "graphql",
+    "rest-api",
+    "openapi",
+    "swagger-ui",
+    "jwt-authentication",
+    "websocket",
+    "javascript",
+    "nodejs",
+    "wincc-oa"
+  ],
+  "Version": "1.0.0",
+  "Description": "Application example for exposing WinCC OA data and functionality through a Node.js-based GraphQL and REST API server. It provides GraphQL queries, mutations and subscriptions, REST API endpoints, JWT-based authentication, direct access tokens, role-based authorization, and an integrated Swagger/OpenAPI interface for testing and exploration.",
+  "OaVersions": "^3.21.00",
+  "Subprojects": [
+    {
+      "Name": "WinCCOAGraphQLRestApisExample",
+      "Description": "Subproject for the WinCC OA GraphQL and REST API Server including the Node.js-based API server implementation, configuration templates, authentication settings, and supporting JavaScript files."
+    }
+  ]
+}
