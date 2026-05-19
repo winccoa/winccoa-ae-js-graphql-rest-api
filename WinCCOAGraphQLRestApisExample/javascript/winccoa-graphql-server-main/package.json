@@ -4,7 +4,7 @@
   "description": "GraphQL server for WinCC OA Manager",
   "main": "index.js",
   "scripts": {
-    "start": "node \"C:/Program Files/Siemens/WinCC_OA/3.20/javascript/winccoa-manager/lib/bootstrap.js\" -PROJ \"Test_GraphQL\" -pmonIndex 8 index.js",
+    "start": "node \"C:/Program Files/Siemens/WinCC_OA/3.21/javascript/winccoa-manager/lib/bootstrap.js\" -PROJ \"Test_GraphQL\" -pmonIndex 8 index.js",
     "dev": "node index.js",
     "test": "node tests/run-all.js"
   },
