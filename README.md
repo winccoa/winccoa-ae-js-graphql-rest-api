@@ -17,7 +17,8 @@ By introducing this API layer, external systems can interact with WinCC OA in a 
 
 Connect → Authenticate → Query → Subscribe
 <img width="754" height="424" alt="img" src="https://github.com/user-attachments/assets/53e01562-4556-4fc5-9fe8-deda37918fea" />
-## Figure 1 – WinCC OA GraphQL & REST API Server Overview
+
+<em>Figure 1 – WinCC OA GraphQL & REST API Server Overview</em>
 
 ## Version
 
@@ -69,8 +70,11 @@ WinCC OA GraphQL & REST API Server
 - Common startup troubleshooting guidance
 - Security configuration recommendations
 
-<img width="800" height="450" alt="video" src="https://github.com/user-attachments/assets/a3c3392f-e777-452a-b105-13ae0d59b5f3" />
-## Video 1 – Updating a WinCC OA Datapoint Value via the GraphQL API
+
+
+ <img width="1900" height="1069" alt="VideoRestGraphQLApi (1) (1)" src="https://github.com/user-attachments/assets/19f51e64-dae6-4178-9ae2-ceb268b2ba51" />
+
+<em>Video 1 – Updating a WinCC OA Datapoint Value via the GraphQL API</em>
 
 # Conclusion
 
