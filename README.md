@@ -106,5 +106,7 @@ This repository includes the project folder, documentation, and legal informatio
 - `LEGAL_INFO.md`: Legal information
 
 - `LICENSE.md`: License information
+  
+- `cns_tree_example.json`: Example CNS tree structure with display names and mapped example datapoints
 
 - `README.md`: This file
