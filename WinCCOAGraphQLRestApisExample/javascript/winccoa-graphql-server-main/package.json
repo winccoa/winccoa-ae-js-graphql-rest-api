@@ -9,24 +9,21 @@
     "test": "node tests/run-all.js"
   },
   "dependencies": {
-    "@apollo/server": "5.5.0",
+    "@apollo/server": "5.5.1",
     "@as-integrations/express5": "1.1.2",
     "@graphql-tools/schema": "10.0.33",
     "cors": "2.8.6",
-    "dotenv": "16.6.1",
+    "dotenv": "17.4.2",
     "express": "5.2.1",
-    "graphql": "16.14.0",
-    "graphql-ws": "5.16.2",
-    "js-yaml": "4.1.1",
+    "graphql": "16.14.1",
+    "graphql-ws": "6.0.8",
+    "js-yaml": "4.2.0",
     "jsonwebtoken": "9.0.3",
     "swagger-ui-express": "5.0.1",
-    "uuid": "9.0.1",
-    "ws": "8.20.1"
-  },
-  "devDependencies": {
-    "node-fetch": "2.7.0"
+    "uuid": "14.0.0",
+    "ws": "8.21.0"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "=22.22.2"
   }
 }
